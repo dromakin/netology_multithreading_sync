@@ -20,6 +20,22 @@ public class Main {
     public static void main(String[] args) throws InterruptedException {
         List<Thread> threads = new ArrayList<>();
 
+        Thread threadFreqCurMax = new Thread(() -> {
+            int i = 0;
+            while (!Thread.interrupted()) {
+                synchronized (sizeToFreq) {
+                    try {
+                        sizeToFreq.wait();
+                        Map.Entry<Integer, Integer> maxEntry = sizeToFreq.entrySet().stream().max(Map.Entry.comparingByValue()).get();
+                        System.out.printf("№%d Локальный лидер: повторений %s (встретилось %s раз)\n", i++, maxEntry.getKey(), maxEntry.getValue());
+                    } catch (InterruptedException e) {
+                        break;
+                    }
+                }
+            }
+        });
+        threadFreqCurMax.start();
+
         for (int i = 0; i < THREAD_COUNT; i++) {
             Thread thread = new Thread(() -> {
                 String way = generateRoute("RLRFR", 100);
@@ -31,6 +47,7 @@ public class Main {
                     } else {
                         sizeToFreq.put(count, 1);
                     }
+                    sizeToFreq.notify();
                 }
             });
 
@@ -40,6 +57,7 @@ public class Main {
         for (Thread thread : threads) {
             thread.join();
         }
+        threadFreqCurMax.interrupt();
 
         Map.Entry<Integer, Integer> maxEntry = sizeToFreq.entrySet().stream().max(Map.Entry.comparingByValue()).get();
         System.out.printf("Самое частое количество повторений %s (встретилось %s раз)\n", maxEntry.getKey(), maxEntry.getValue());
